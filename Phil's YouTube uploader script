@@ -1,0 +1,76 @@
+import os
+import time
+import random
+import json
+import requests
+
+# Configuration
+YOUTUBE_UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
+API_KEY = "YOUR_YOUTUBE_API_KEY"  # Replace with actual API key
+VIDEO_FOLDER = "videos"
+LOG_FILE = "upload_log.json"
+
+def get_video_files():
+    """Retrieve a list of video files from the folder."""
+    return [f for f in os.listdir(VIDEO_FOLDER) if f.endswith(".mp4")]
+
+def upload_video(video_file):
+    """Uploads a video to YouTube."""
+    print(f"Uploading {video_file}...")
+    
+    metadata = {
+        "snippet": {
+            "title": f"Affiliate Marketing Secrets {random.randint(1000, 9999)}",
+            "description": "Discover the best affiliate marketing strategies to generate passive income!",
+            "tags": ["affiliate marketing", "make money online", "passive income"],
+            "categoryId": "22"
+        },
+        "status": {"privacyStatus": "public"}
+    }
+    
+    response = requests.post(
+        YOUTUBE_UPLOAD_URL,
+        params={"part": "snippet,status", "key": API_KEY},
+        headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},  # Replace with actual OAuth token
+        json=metadata
+    )
+    
+    if response.status_code == 200:
+        print(f"Uploaded {video_file} successfully!")
+        log_upload(video_file)
+    else:
+        print(f"Failed to upload {video_file}: {response.text}")
+
+def log_upload(video_file):
+    """Logs successful uploads to prevent duplicate uploads."""
+    try:
+        with open(LOG_FILE, "r") as f:
+            logs = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        logs = []
+    
+    logs.append(video_file)
+    with open(LOG_FILE, "w") as f:
+        json.dump(logs, f)
+
+def main():
+    """Main function to automate video uploads."""
+    while True:
+        videos = get_video_files()
+        uploaded_videos = []
+        try:
+            with open(LOG_FILE, "r") as f:
+                uploaded_videos = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        
+        for video in videos:
+            if video not in uploaded_videos:
+                upload_video(video)
+                time.sleep(60)  # Delay to avoid API rate limits
+        
+        print("Waiting for new videos...")
+        time.sleep(300)  # Check every 5 minutes
+
+if __name__ == "__main__":
+    main()
